@@ -7,130 +7,70 @@
 import requests
 from bs4 import BeautifulSoup
 import pandas as pd
-
-
-# In[14]:
-
-
+import re
+from selenium import webdriver
+from selenium.webdriver.common.keys import Keys
 session = requests.Session()
 
 session.headers['User-Agent']
 
 
-# In[22]:
-
-
 baseurl = "https://notmeat.ru/#rec210908899"
 url = "https://notmeat.ru/"
-# BeautifulSoup(requests.get("https://notmeat.ru/#rec210908899", headers={"User-Agent": "Chrome"}).content, 'html.parser')
 headers = {'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64; rv:101.0) Gecko/20100101 Firefox/101.0'}
-response = session.get(baseurl, headers=headers)
 
 
-# In[16]:
+def createSoup(header: dict, url: str, session:requests.sessions.Session)->bs4.BeautifulSoup:
+    response = session.get(baseurl, headers=headers)
+    return BeautifulSoup(response.text, 'html.parser')
+
+def buildTree(html_item: str, html_class: str) -> dict:
+    container = html_soup.find_all([html_item], class_=lambda x: x == html_class)
+
+    links = [line.get("href") for line in container]
+    titles = [line.text for line in container]
+    return dict(zip(titles, links))
 
 
-html_soup = BeautifulSoup(response.text, 'html.parser')
-html_soup
+def traverseTree(tree: dict, html_item: str, html_class: str) -> dict:
+    traversal_dict = {}
+    for i in tree:
+        try:
+            response = session.get(url[:-1] + tree[i], headers=headers)
+            html_soup = BeautifulSoup(response.text, 'html.parser')
+            page = html_soup.find_all(html_item, 
+                            class_=lambda x: x == html_class)
+            traversal_dict[i] = page
+        except:
+            pass
+
+def findItemsByContent(traversal_dict: dict, key_word: str) -> dict:
+    data = {}
+    for i in traversal_dict:
+        if len(traversal_dict[i]) > 0:
+            for j in traversal_dict[i]:
+                if key_word in str(j):
+                    data[i] = j
 
 
-# In[37]:
+def dataCleanup(data: dict, rx: dict) -> dict: #{'<[^>]+>':'', 'Состав:'', '[(]': ', ', '[)]': ''}
+    for i in data:
+        for x in rx:
+            data[i] = re.sub(x, rx[x], str(data[i]))
+    return data
 
+def simpleCrawler()-> dict:
+    pass
 
-container = html_soup.find_all(["a"], 
-                               class_=lambda x: x == 'tn-atom')
+def runSimpleCrawler() -> dict:
+    data = simpleCrawler()
+    for i in data: 
+        data[i] = str(data[i])[:-1].strip()
+        data[i] = set(data[i].split(", "))
+    return data
 
-
-# In[36]:
-
-
-container
-
-
-# In[40]:
-
-
-counter = 0
-# container = []
-for line in container:
-#     print(line)
-    counter +=1
-#     print(str(counter) + " " + line.text + " " + str(len(line.text)))
-#     print(type(line.get("href")))
-    print(line.get("href"))
-    
-
-
-# In[48]:
-
-
-links = [line.get("href") for line in container]
-titles = [line.text for line in container]
-print(f"{len(links)} {len(titles)}")
-tree = dict(zip(titles, links))
-
-
-# In[53]:
-
-
-url + 
-
-
-# In[64]:
-
-
-desc_dict = {}
-for i in tree:
-#     print(url[:-1] + tree[i])
-    try:
-        response = session.get(url[:-1] + tree[i], headers=headers)
-        html_soup = BeautifulSoup(response.text, 'html.parser')
-        page = html_soup.find_all("div", 
-                           class_=lambda x: x == 'tn-atom')
-        desc_dict[i] = page
-    except:
-        pass
-
-
-# In[101]:
-
-
-desc_dict
-data = {}
-# import re
-for i in desc_dict:
-    if len(desc_dict[i]) > 0:
-        for j in desc_dict[i]:
-            if "Состав" in str(j):
-                data[i] = j
-        
-
-
-# In[102]:
-
-
-import re
-s = '<@ """@$ FSDF >something something <more noise>'
-for i in data:
-    data[i] = re.sub('<[^>]+>', '', str(data[i]))
-    data[i] = re.sub('Состав:', '', str(data[i]))
-#     data[i] = re.sub('', '', str(data[i]))
-    
-    data[i] = re.sub('[(]', ', ', str(data[i]))
-    data[i] = re.sub('[)]', '', str(data[i]))
-    data[i] = str(data[i])[:-1].strip()
-    data[i] = set(data[i].split(", "))
-
-
-# In[134]:
-
-
-from selenium import webdriver
-from selenium.webdriver.common.keys import Keys
-
-
-# In[139]:
-
+def scrollingCrawler() -> dict:
+    pass
 
 baseurl = "https://shop.soyka.ru"
 url = "https://shop.soyka.ru/catalog/rastitelnye-myasnye-alternativy/#"
@@ -153,31 +93,14 @@ file.close()
 driver.close()
 
 
-# In[140]:
-
-
 file = open('DS.html', 'r')
 page = file.read()
 file.close()
-
-
-# In[121]:
-
-
-# with open("soyea.html", "r") as fin:
-#     page = fin.read()
-
-
-# In[141]:
-
 
 html_soup = BeautifulSoup(page, 'html.parser')
 
 container = html_soup.find_all(["a"], 
                                class_=lambda x: x == 'c-catalog__section__name')
-
-
-# In[146]:
 
 
 print(len(container))
